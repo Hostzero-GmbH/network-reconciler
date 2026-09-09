@@ -1,0 +1,73 @@
+name: network-reconciler
+arch: "${ARCH}"
+platform: linux
+version: "${VERSION}"
+maintainer: "Hostzero GmbH <ops@hostzero.io>"
+description: |
+  Per-node network reconciler for Proxmox VE clusters.
+
+  Subscribes to proxmox-eventbus VM lifecycle events via NATS, queries Netbox
+  for external-to-internal IP NAT mappings, and maintains nftables DNAT/SNAT
+  rules and FRR BGP route advertisements for VMs currently running on this node.
+  VM migration across nodes is handled automatically.
+vendor: "Hostzero GmbH"
+homepage: "https://github.com/hostzero/network-reconciler"
+license: Apache-2.0
+
+depends:
+  - nftables
+  - frr
+  - iproute2
+  - proxmox-eventbus
+
+contents:
+  - src: dist/network-reconciler
+    dst: /usr/bin/network-reconciler
+    file_info:
+      mode: 0755
+
+  - src: packaging/etc/network-reconciler/config.yaml
+    dst: /etc/network-reconciler/config.yaml
+    type: config|noreplace
+    file_info:
+      mode: 0640
+      owner: root
+      group: network-reconciler
+
+  - src: packaging/etc/network-reconciler/environment
+    dst: /etc/network-reconciler/environment
+    type: config|noreplace
+    file_info:
+      mode: 0640
+      owner: root
+      group: network-reconciler
+
+  - src: packaging/systemd/network-reconciler.service
+    dst: /lib/systemd/system/network-reconciler.service
+    file_info:
+      mode: 0644
+
+  # Referenced by postinstall.sh. Must be merged into /etc/frr/frr.conf by hand: a node
+  # without `redistribute connected` announces nothing and its VMs are unreachable.
+  - src: packaging/frr-bgp-example.conf
+    dst: /usr/share/doc/network-reconciler/frr-bgp-example.conf
+    file_info:
+      mode: 0644
+
+  - dst: /etc/network-reconciler/certs
+    type: dir
+    file_info:
+      mode: 0750
+      owner: network-reconciler
+      group: network-reconciler
+
+  - dst: /var/lib/network-reconciler
+    type: dir
+    file_info:
+      mode: 0750
+      owner: network-reconciler
+      group: network-reconciler
+
+scripts:
+  postinstall: scripts/postinstall.sh
+  preremove: scripts/preremove.sh

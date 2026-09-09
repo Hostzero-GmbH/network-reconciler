@@ -1,0 +1,70 @@
+# /etc/network-reconciler/config.yaml
+# network-reconciler configuration
+#
+# Environment variable overrides: prefix any dotted key with NR_ and replace
+# dots with underscores.  Example: NR_NETBOX_TOKEN overrides netbox.token.
+
+# Proxmox cluster metadata source.
+# network-reconciler reads cluster name and local nodename from this file.
+pve_members_path: /etc/pve/.members
+
+nats:
+  # NATS server URLs. If omitted, derived from /etc/pve/.members nodelist
+  # as tls://<node>:4222 for each cluster node.
+  servers:
+    - tls://pve01:4222
+    - tls://pve02:4222
+    - tls://pve03:4222
+
+  # TLS certificates issued by proxmox-eventbus.
+  # Run `proxmox-eventbus issue-client-cert --cn network-reconciler --out /etc/network-reconciler/certs`
+  cert: /etc/network-reconciler/certs/client.pem
+  key:  /etc/network-reconciler/certs/client.key
+  ca:   /etc/network-reconciler/certs/ca.pem
+
+netbox:
+  # Base URL of your Netbox instance (no trailing slash).
+  url: https://netbox.internal
+  # API token — prefer NR_NETBOX_TOKEN env var or /etc/network-reconciler/environment
+  # to avoid storing the secret in this file.
+  token: ""
+
+frr:
+  # enabled: set to false to disable BGP route management (nftables rules still apply).
+  enabled: true
+  # loopback_interface: interface where /32 host IPs are assigned for FRR redistribution.
+  loopback_interface: lo
+
+# webhook: Netbox webhook receiver.
+# When enabled, Netbox pushes change notifications instantly instead of waiting
+# for the next reconcile_interval tick.
+#
+# Netbox setup (Settings → Webhooks → Add webhook):
+#   URL:          http://<this-node-ip>:9095/webhook
+#   HTTP method:  POST
+#   Content type: application/json
+#   Secret:       <same value as webhook.secret below>
+#   Events:       Created, Updated, Deleted
+#   Object types: IPAM > IP address
+#                 Virtualization > Virtual machine
+#                 Virtualization > VM interface
+webhook:
+  enabled: false
+  listen_addr: ":9095"
+  # secret: HMAC-SHA512 shared secret — must match the Netbox webhook secret.
+  # Prefer NR_WEBHOOK_SECRET env var to avoid storing it in this file.
+  secret: ""
+  # base_url: externally reachable URL of this node's webhook server.
+  # Used when auto-registering this node in Netbox on startup.
+  # If empty, constructed as http://<node-ip>:9095 using this node's IP from
+  # pve_members_path (falling back to the node hostname when no IP is known).
+  # Override if the node is behind a reverse proxy, has a custom DNS name, or is
+  # reachable from Netbox on a different address than its cluster IP.
+  base_url: ""
+
+# reconcile_interval: how often to perform a full Netbox-driven reconcile regardless
+# of events.  Go duration string, e.g. "60s", "2m", "5m".
+reconcile_interval: 60s
+
+# log_level: debug | info | warn | error
+log_level: info

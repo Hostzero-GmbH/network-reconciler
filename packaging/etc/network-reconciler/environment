@@ -1,0 +1,9 @@
+# Environment variables for network-reconciler.
+# This file is sourced by the systemd unit (EnvironmentFile).
+# Uncomment and set values as needed.
+
+# Netbox API token (overrides netbox.token in config.yaml).
+# NR_NETBOX_TOKEN=your-token-here
+
+# Netbox webhook HMAC secret (overrides webhook.secret in config.yaml).
+# NR_WEBHOOK_SECRET=your-webhook-secret-here

@@ -1,0 +1,44 @@
+[Unit]
+Description=Network Reconciler for Proxmox VE
+Documentation=https://github.com/hostzero/network-reconciler
+After=network-online.target frr.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+# /etc/pve is pmxcfs and only root can write there.
+User=root
+Group=network-reconciler
+
+ExecStart=/usr/bin/network-reconciler -config /etc/network-reconciler/config.yaml
+
+Restart=on-failure
+RestartSec=10s
+TimeoutStopSec=30s
+
+# Load optional environment overrides (e.g. NR_NETBOX_TOKEN).
+EnvironmentFile=-/etc/network-reconciler/environment
+
+# CAP_NET_ADMIN is required for:
+#   - nft (nftables rule management)
+#   - ip route add/del (kernel route table for FRR redistribution)
+AmbientCapabilities=CAP_NET_ADMIN
+CapabilityBoundingSet=CAP_NET_ADMIN
+
+# Security hardening
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ReadWritePaths=/var/lib/network-reconciler
+ReadWritePaths=/etc/pve/network-reconciler
+# vtysh connects to bgpd's control socket to verify FRR redistribution at startup.
+# Connecting to a unix socket needs write access, which ProtectSystem=strict denies.
+# Leading '-' so the unit still starts on a node without FRR installed.
+ReadWritePaths=-/run/frr
+ProtectHome=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+RestrictNamespaces=yes
+SystemCallFilter=@system-service @network-io
+
+[Install]
+WantedBy=multi-user.target
