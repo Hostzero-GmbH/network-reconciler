@@ -66,7 +66,7 @@ fi
 cat <<'EOF'
 
 Next steps:
-  1. Edit /etc/network-reconciler/config.yaml — set cluster, nats.servers, netbox.url
+  1. Edit /etc/network-reconciler/config.yaml — set nats.servers, netbox.url, enable webhooks
   2. Set the Netbox API token: echo "NR_NETBOX_TOKEN=<token>" >> /etc/network-reconciler/environment
   3. Configure FRR BGP — merge /usr/share/doc/network-reconciler/frr-bgp-example.conf
      into /etc/frr/frr.conf, then run: systemctl reload frr

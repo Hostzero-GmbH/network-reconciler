@@ -13,8 +13,10 @@ type Status int8
 const (
 	// StatusAbsent means the VM is not running on this node.
 	StatusAbsent Status = iota
-	// StatusStaged means a migration to this node has started; rules are
-	// pre-applied but BGP is not yet advertised.
+	// StatusStaged means a migration to this node has started but has not cut over.
+	// The VM is still serving on the source, so this node applies no rules and makes
+	// no advertisement for it. The marker exists so a local start.finished cannot
+	// activate the VM before migrate.synced.
 	StatusStaged
 	// StatusActive means the VM is running on this node and all rules are live.
 	StatusActive
@@ -64,7 +66,7 @@ func (s *Store) SetActive(vmid int, name string, t time.Time) {
 	s.set(vmid, name, StatusActive, t, 0)
 }
 
-// SetStaged marks the VM as pre-staged (migration started, targeting this node).
+// SetStaged marks the VM as staged: a migration targeting this node has started.
 func (s *Store) SetStaged(vmid int, name string, t time.Time) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -95,7 +97,8 @@ func (s *Store) UpdateFromSnapshot(vmid int, name string, running bool, observed
 	// A VM staged for an incoming migration is legitimately not yet running on this
 	// node, and migrations routinely outlast the snapshot cadence. Letting a
 	// running=false snapshot win here would silently reset Staged → Absent partway
-	// through and tear down everything pre-staged for the cutover. Only
+	// through, letting this node's own start.finished activate the VM while it is
+	// still serving on the source — two nodes advertising the same /32. Only
 	// migrate.synced, migrate.failed, or the staged TTL sweep may leave Staged.
 	if existing != nil && existing.Status == StatusStaged && !running {
 		existing.ObservedAtNs = observedAtNs

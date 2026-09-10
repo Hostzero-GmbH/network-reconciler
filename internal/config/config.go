@@ -14,7 +14,8 @@ type Config struct {
 	// Node is this node's short hostname loaded from pve_members_path at runtime.
 	Node string `mapstructure:"-"`
 	// NodeIPs maps cluster node name to its IP, loaded from pve_members_path.
-	// Used as the next hop for staged host routes during a migration.
+	// Used to build this node's webhook payload URL when auto-registering in Netbox,
+	// so registration does not depend on the node's hostname being resolvable.
 	NodeIPs map[string]string `mapstructure:"-"`
 	// PVEMembersPath is the path to the Proxmox cluster members file.
 	// Default: /etc/pve/.members.

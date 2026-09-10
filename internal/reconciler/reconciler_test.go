@@ -427,11 +427,11 @@ func TestVMStopWithdrawsRulesAndBGP(t *testing.T) {
 	}
 }
 
-// Staged VMs get neither NAT rules nor a connected-route advertisement. DNAT runs
-// before the routing decision, so a pre-staged rule would swallow traffic meant for
-// the staged host route (see TestPreStageInstallsHostRouteViaOwner, which covers the
-// route that *is* installed).
-func TestMigrationInPreStagesWithoutApplyingNFTOrBGP(t *testing.T) {
+// A staged VM produces neither NAT rules nor an advertisement: it is still serving on
+// the source, so both would be wrong here. This also covers the part unique to the
+// staged marker — a local start.finished arriving before migrate.synced must not
+// activate the VM.
+func TestStagedVMProducesNothingUntilMigrationSynced(t *testing.T) {
 	extIP := netip.MustParseAddr("203.0.113.1")
 	intIP := netip.MustParseAddr("10.0.1.100")
 
@@ -457,7 +457,7 @@ func TestMigrationInPreStagesWithoutApplyingNFTOrBGP(t *testing.T) {
 		t.Fatalf("expected no nft mappings before migration.synced, got %d", len(nft.lastMappings))
 	}
 	if frrm.advertised[extIP] != 0 {
-		t.Fatal("expected no loopback IP advertisement during pre-staging")
+		t.Fatal("expected no loopback IP advertisement while the VM is staged")
 	}
 }
 

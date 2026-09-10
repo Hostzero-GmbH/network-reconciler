@@ -24,8 +24,7 @@ type PVEMembers struct {
 	ClusterName string
 	NodeName    string
 	Nodes       []string
-	// NodeIPs maps node name to its cluster IP. Used as the next hop for staged
-	// host routes, which forward traffic to whichever node currently owns a VM.
+	// NodeIPs maps node name to its cluster IP, as reported by the members file.
 	NodeIPs map[string]string
 }
 

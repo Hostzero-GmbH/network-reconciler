@@ -100,7 +100,7 @@ func internalLifecycleEvent(action, phase, node string, vmid int, name string) (
 }
 
 // internalMigrateEvent builds a migrate CloudEvent as proxmox-eventbus would publish
-// it, including the target_node the pre-stage branch is gated on.
+// it, including the target_node the staged branch is gated on.
 func internalMigrateEvent(phase, srcNode, dstNode string, vmid int, name string) (string, events.CloudEvent) {
 	subject := fmt.Sprintf("pve.hzero.%s.qemu.%d.migrate.%s", srcNode, vmid, phase)
 	return subject, events.CloudEvent{
@@ -452,7 +452,7 @@ func TestCutoverPerformsNoPmxcfsIO(t *testing.T) {
 	subj, evt := internalMigrateEvent("started", "pve02", "pve01", 101, "web-01")
 	rec.HandleEvent(subj, evt)
 	if err := rec.FlushBackups(); err != nil {
-		t.Fatalf("flushing backups after pre-stage: %v", err)
+		t.Fatalf("flushing backups after the staged marker: %v", err)
 	}
 
 	// Baselines taken immediately before the cutover.

@@ -27,8 +27,9 @@ import (
 // slow (pmxcfs, a NetBox fetch) has crept back onto the critical path.
 const handlerWatchdog = 50 * time.Millisecond
 
-// stagedTTL bounds how long pre-staged rules may persist without a terminal
-// migration event. Aborted migrations emit nothing, so without this they leak.
+// stagedTTL bounds how long the staged marker may persist without a terminal
+// migration event. Aborted migrations emit nothing, so without this a VM stays staged
+// forever and its local start.finished is suppressed indefinitely.
 const stagedTTL = 15 * time.Minute
 
 // Apply sources. These name where the mappings for an apply came from, which decides
@@ -306,8 +307,8 @@ func (r *Reconciler) CloseBackups(ctx context.Context) error {
 	return r.backup.close(ctx)
 }
 
-// FlushRoutes withdraws the loopback IP addresses and staged host routes this process
-// installed. Intended for graceful shutdown so they are cleaned up alongside nftables.
+// FlushRoutes withdraws the loopback IP addresses this process advertised.
+// Intended for graceful shutdown so they are cleaned up alongside nftables.
 //
 // The empty managed set skips kernel adoption deliberately: on shutdown we withdraw only
 // what we know we advertised, never something we merely found on the interface.
@@ -445,14 +446,16 @@ func (r *Reconciler) activeStateKey() string {
 	return b.String()
 }
 
-// expireStagedVMs clears pre-staged VMs whose migration never reached a terminal
-// event, so their rules do not linger indefinitely.
+// expireStagedVMs clears the staged marker for VMs whose migration never reached a
+// terminal event. Staged VMs carry no rules, but the marker suppresses their local
+// start.finished, so leaving it set would keep a VM that really did start here
+// unadvertised indefinitely.
 func (r *Reconciler) expireStagedVMs() {
 	expired := r.store.ExpireStaged(time.Now().Add(-stagedTTL))
 	if len(expired) == 0 {
 		return
 	}
-	r.log.Warn("expiring pre-staged VMs with no terminal migration event",
+	r.log.Warn("expiring staged VMs with no terminal migration event",
 		zap.Ints("vmids", expired),
 		zap.Duration("ttl", stagedTTL),
 	)
@@ -882,8 +885,8 @@ func (r *Reconciler) applyMappingsTimed(ctx context.Context, allMappings []netbo
 	// Adding an external IP to lo makes it a *local* address, and nat prerouting runs
 	// before the routing decision — so advertising before the DNAT rule exists makes
 	// the host answer with a RST/ICMP unreachable, which is worse than a drop. So
-	// additions need nftables first, *unless* the rules are already in place, which is
-	// exactly the pre-staged cutover case.
+	// additions need nftables first, *unless* the ruleset is already byte-identical, in
+	// which case there is nothing to install and ordering is moot.
 	//
 	// Removals are the opposite: withdrawing first means packets still being routed
 	// here during convergence are forwarded toward the departed VM (a drop) rather
